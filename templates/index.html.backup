@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Server Log Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #2c3e50; 
+            text-align: center; 
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        .upload-form { 
+            text-align: center; 
+            margin: 40px 0; 
+            padding: 40px; 
+            border: 3px dashed #ddd; 
+            border-radius: 15px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+        .upload-form:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+        .btn { 
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .btn i {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+        .btn-success:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
+        }
+        .results { 
+            margin-top: 40px; 
+        }
+        .error { 
+            color: #e74c3c; 
+            padding: 15px; 
+            background: #fadbd8; 
+            border-radius: 10px; 
+            margin: 20px 0;
+            border-left: 4px solid #e74c3c;
+        }
+        .success { 
+            color: #27ae60; 
+            padding: 15px; 
+            background: #d5f5e3; 
+            border-radius: 10px; 
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+        }
+        .chart-container { 
+            width: 50%; 
+        }
+        .legend-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #eee;
+            margin-right: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .legend-container ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .legend-container li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+        .legend-container li:hover {
+            background-color: #f0f0f0;
+        }
+        .color-box {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .chart-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 30px auto;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 25px 0; 
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        th, td { 
+            padding: 15px; 
+            text-align: left; 
+            border-bottom: 1px solid #e0e0e0; 
+        }
+        th { 
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .button-group {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 15px 0;
+        }
+        .file-input-wrapper input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-input-label {
+            display: inline-flex;
+            align-items: center;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+        .file-input-label i {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+        .selected-file {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Web Server Attack Log Analyzer</h1>
+        <p class="subtitle">Upload your Nginx access log file to detect OWASP Top 10 attacks</p>
+        
+        <div class="upload-form" id="uploadFormSection">
+            <form method="post" enctype="multipart/form-data" id="uploadForm">
+                <div class="file-input-wrapper">
+                    <span class="file-input-label">
+                        <i class="fas fa-file-upload"></i>Choose Log File
+                    </span>
+                    <input type="file" name="logfile" accept=".log,.txt" required id="fileInput">
+                </div>
+                <div class="selected-file" id="fileName"></div>
+                <br>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>Analyze Log File
+                </button>
+            </form>
+        </div>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        {% if results %}
+            <div class="results" id="resultsSection">
+                {% if results.error %}
+                    <div class="error">Analysis Error: {{ results.error }}</div>
+                {% else %}
+                    <div class="button-group">
+                        <a href="/download_report/{{ results.report_filename }}" class="btn btn-success">
+                            <i class="fas fa-download"></i>Download Full CSV Report
+                        </a>
+                        <button class="btn btn-danger" onclick="resetForm()">
+                            <i class="fas fa-sync-alt"></i>Analyze Another File
+                        </button>
+                    </div>
+
+                    <h2>📊 Analysis Results for {{ original_filename }}</h2>
+                    
+                    <!-- Summary Statistics -->
+                    <div class="summary-stats">
+                        <div class="stat-box">
+                            <div class="stat-number">{{ results.line_count }}</div>
+                            <div class="stat-label">Total Lines</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number">{{ results.parsed_count }}</div>
+                            <div class="stat-label">Parsed Successfully</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number">{{ results.attack_count }}</div>
+                            <div class="stat-label">Attacks Detected</div>
+                        </div>
+                    </div>
+
+                    {% if results.attack_count > 0 %}
+                        <!-- Chart with Left-Aligned Legend -->
+                        <div class="chart-wrapper">
+                            <!-- Legend on the left -->
+                            <div class="legend-container" id="legend-container"></div>
+                            
+                            <!-- Pie Chart on the right -->
+                            <div class="chart-container">
+                                <canvas id="attackChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Attack Breakdown Table -->
+                        <h3>⚔️ Attack Breakdown</h3>
+                        <table>
+                            <tr>
+                                <th>Attack Type</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                            </tr>
+                            {% for attack_type, count in results.attack_breakdown.items() %}
+                            <tr>
+                                <td>{{ attack_type }}</td>
+                                <td>{{ count }}</td>
+                                <td>{{ "%.1f"|format((count / results.attack_count) * 100) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+
+                        <!-- Top Attackers Table -->
+                        <h3>🌐 Top 10 Attacking IP Addresses</h3>
+                        <table>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Attack Count</th>
+                                <th>Percentage</th>
+                            </tr>
+                            {% for ip, count in results.top_attackers.items() %}
+                            <tr>
+                                <td>{{ ip }}</td>
+                                <td>{{ count }}</td>
+                                <td>{{ "%.1f"|format((count / results.attack_count) * 100) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+
+                        <!-- Sample of Detected Attacks -->
+                        <h3>🔍 Sample of Detected Attacks (First 50)</h3>
+                        <table>
+                            <tr>
+                                <th>Time</th>
+                                <th>IP</th>
+                                <th>Method</th>
+                                <th>URL</th>
+                                <th>Attack Type</th>
+                            </tr>
+                            {% for attack in results.detailed_attacks %}
+                            <tr>
+                                <td>{{ attack.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ attack.ip }}</td>
+                                <td>{{ attack.method }}</td>
+                                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">{{ attack.url }}</td>
+                                <td>{{ attack.attack_type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+
+                        <!-- Chart.js Script -->
+                        <script>
+                            const ctx = document.getElementById('attackChart').getContext('2d');
+                            const attackChart = new Chart(ctx, {
+                                type: 'pie',
+                                data: {
+                                    labels: {{ results.chart_labels | tojson }},
+                                    datasets: [{
+                                        data: {{ results.chart_data | tojson }},
+                                        backgroundColor: [
+                                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                                            '#9966FF', '#FF9F40', '#8A2BE2', '#7CFC00',
+                                            '#FF69B4', '#20B2AA', '#FF4500', '#9370DB',
+                                            '#32CD32', '#FFD700', '#00CED1', '#FF6347'
+                                        ]
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    plugins: {
+                                        title: {
+                                            display: true,
+                                            text: 'Distribution of Detected Attack Types',
+                                            font: {
+                                                size: 16,
+                                                weight: 'bold'
+                                            }
+                                        },
+                                        legend: {
+                                            display: false
+                                        },
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function(context) {
+                                                    const label = context.label || '';
+                                                    const value = context.raw || 0;
+                                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                    const percentage = Math.round((value / total) * 100);
+                                                    return `${label}: ${value} (${percentage}%)`;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+
+                            function createLegend(chart) {
+                                const legendContainer = document.getElementById('legend-container');
+                                legendContainer.innerHTML = '';
+                                
+                                const ul = document.createElement('ul');
+                                
+                                chart.data.labels.forEach((label, i) => {
+                                    const li = document.createElement('li');
+                                    
+                                    const colorBox = document.createElement('span');
+                                    colorBox.className = 'color-box';
+                                    colorBox.style.backgroundColor = chart.data.datasets[0].backgroundColor[i];
+                                    
+                                    const labelText = document.createElement('span');
+                                    labelText.textContent = label;
+                                    labelText.style.fontSize = '14px';
+                                    
+                                    li.appendChild(colorBox);
+                                    li.appendChild(labelText);
+                                    ul.appendChild(li);
+                                });
+                                
+                                legendContainer.appendChild(ul);
+                            }
+
+                            createLegend(attackChart);
+                        </script>
+
+                    {% else %}
+                        <p class="success">✅ No attacks detected in the log file. Your server appears to be clean!</p>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Global reset function that will work
+        function resetForm() {
+            console.log("Reset button clicked");
+            
+            // Clear file input
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            
+            // Clear file name display
+            const fileName = document.getElementById('fileName');
+            if (fileName) {
+                fileName.textContent = '';
+            }
+            
+            // Reset the form
+            const form = document.getElementById('uploadForm');
+            if (form) {
+                form.reset();
+            }
+            
+            // Scroll to top to show the upload form
+            window.scrollTo(0, 0);
+            
+            // Force a page reload to clear all results completely
+            window.location.href = '/';
+        }
+
+        // Show selected file name
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    const fileName = e.target.files[0]?.name || '';
+                    const fileNameDisplay = document.getElementById('fileName');
+                    if (fileNameDisplay) {
+                        fileNameDisplay.textContent = fileName ? `Selected: ${fileName}` : '';
+                    }
+                });
+            }
+            
+            // Prevent form resubmission on page refresh
+            if (window.history.replaceState) {
+                window.history.replaceState(null, null, window.location.href);
+            }
+        });
+    </script>
+</body>
+</html>
