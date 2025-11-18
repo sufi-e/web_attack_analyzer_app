@@ -7,15 +7,58 @@ import csv
 # OWASP Top 10 attack patterns (refined patterns)
 attack_patterns = {
     'SQL Injection': [
-        r"union\s+select",
+        # Basic tautologies / boolean based
+        r"\b(or|and)\b\s+0\s*=\s*0",
+        r"\b(or|and)\b\s+1\s*=\s*1",
+        r"\b(or|and)\b\s+'1'='1'",
+        r"(?:(?:')|(?:%27))\s*or\s*(?:'|%27)?1(?:'|%27)?\s*=\s*(?:'|%27)?1",
         r"1\s*=\s*1",
-        r"';?\s*(?:--|#)",
-        r"exec\(|eval\(|sleep\(\s*\d+\s*\)",
-        r"benchmark\(\s*\d+\s*,\s*[a-z]+\)",
-        r"order by \d+--",
-        r"insert into.*values",
-        r"drop table",
+        # UNION SELECT variations
+        r"union(?:/\*.*?\*/)?\s+select",
+        r"union\s+all\s+select",
+        r"union(?:%20|%2f|%2F|\s)+select",
+        # Stacked queries / semicolon attacks
+        r";\s*(drop|insert|update|delete|truncate|create)\b",
+        r"\binto\s+outfile\b",
+        r"\binto\s+dumpfile\b",
+        # Comments and quote terminations
+        r"('|\")\s*;?\s*--",
+        r"--\s*$",
+        r"#\s*$",
+        r"/\*.*\*/",
+        # Common SQL functions and keywords (error/time based)
+        r"\b(sleep|benchmark|waitfor|pg_sleep)\s*\(",
+        r"\bbenchmark\s*\(",
+        r"\b(select|update|delete|insert|drop|alter|exec|execute|call)\b",
+        r"\binformation_schema\b",
+        r"\b@@version\b",
+        r"\bconcat\s*\(",
+        r"\bload_file\s*\(",
+        r"\bgroup_concat\s*\(",
+        r"\bcast\s*\(",
+        r"\bconvert\s*\(",
+        r"\bsubstring\s*\(",
+        # Error-based probes
+        r"sqlsyntaxerror|mysql_fetch|odbc|pg_query|syntax error at or near",
+        # hex/char and encoded payloads
+        r"0x[0-9a-f]{2,}",
+        r"char\(\d+\)",
+        # SELECT with columns (targeting user table)
+        r"select\s+.*\bfrom\b\s+[\w\d_]+",
+        r"\bunion\b.*\bselect\b.*\bfrom\b",
+        # common exploitation payloads
+        r"(?:'|%27)\s*or\s*(?:'|%27)?a(?:'|%27)?=(?:'|%27)?a",
+        r"'\s*or\s*'\d+'='\d+'",
+        # percent-encoded forms common in URLs
+        r"%27|%22|%3D|%3B|%2F%2A|%2A%2F",
+        # "OR 1=1" variants with various separators
+        r"\bor\b\s+[0-9]+\s*=\s*[0-9]+\b",
+        # info leak via SELECT @@
+        r"@@\w+",
+        # Loaders and webshell-like file reads
+        r"\bselect\b.*\bfrom\b.*\busers\b",
     ],
+
     'Cross-Site Scripting (XSS)': [
         r"<script>",
         r"javascript:",
@@ -191,3 +234,4 @@ def analyze_log_file(log_file_path):
         "report_filename": report_filename,
         "detailed_attacks": attacks_detected[:50]
     }
+
